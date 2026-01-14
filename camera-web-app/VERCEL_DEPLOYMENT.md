@@ -72,7 +72,10 @@ VITE_DEMO_MODE=true
 
 4. **Output Directory**: Managed automatically by adapter-auto (no need to specify)
 
-5. **Node Version**: Vercel uses Node 18+ by default, which is compatible
+5. **Node Version**: The project is configured to use Node.js 20
+   - `.node-version` file specifies Node 20
+   - `package.json` engines field enforces Node 18-20
+   - If you need to manually set it in Vercel, go to Project Settings → General → Node.js Version → 20.x
 
 ## Troubleshooting
 
@@ -86,9 +89,20 @@ This error occurs when:
 **Solution**: Ensure `vercel.json` only contains:
 ```json
 {
-  "framework": "sveltekit"
+  "framework": "sveltekit",
+  "buildCommand": "node --version && npm run build"
 }
 ```
+
+### "Unsupported Node.js version"
+
+If you see an error about Node.js v24 not being supported:
+
+**Solution**: The project includes a `.node-version` file set to Node 20. If this doesn't work:
+1. Go to Vercel Project Settings
+2. Navigate to General → Node.js Version
+3. Select "20.x" from the dropdown
+4. Redeploy
 
 ### Build Fails
 

@@ -1,3 +1,4 @@
 {
-  "framework": "sveltekit"
+  "framework": "sveltekit",
+  "buildCommand": "node --version && npm run build"
 }
