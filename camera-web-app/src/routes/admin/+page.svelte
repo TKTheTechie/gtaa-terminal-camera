@@ -1,6 +1,6 @@
 <script lang="ts">
   import { currentUser, isAuthenticated } from '$lib/stores';
-  import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import VideoFeed from '$lib/components/VideoFeed.svelte';
   import { USERS } from '$lib/config';
@@ -17,7 +17,7 @@
   onMount(() => {
     // Check if user is authenticated and is admin
     if (!$isAuthenticated || !$currentUser || !$currentUser.isAdmin) {
-      goto('/');
+      window.location.href = base + '/';
       return;
     }
   });

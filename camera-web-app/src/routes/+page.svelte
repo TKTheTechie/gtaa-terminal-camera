@@ -21,13 +21,9 @@
     console.log('Login page - base path:', base);
     // Redirect if already authenticated
     if ($isAuthenticated && $currentUser) {
-      if ($currentUser.isAdmin) {
-        console.log('Redirecting to /admin');
-        goto('/admin');
-      } else {
-        console.log('Redirecting to /' + $currentUser.username);
-        goto(`/${$currentUser.username}`);
-      }
+      const targetPath = $currentUser.isAdmin ? '/admin' : `/${$currentUser.username}`;
+      console.log('Already authenticated - redirecting to:', base + targetPath);
+      window.location.href = base + targetPath;
     }
   });
 
@@ -47,13 +43,16 @@
       isAuthenticated.set(true);
 
       // Redirect based on user type
-      if (user.isAdmin) {
-        console.log('Login successful - redirecting to /admin');
-        goto('/admin');
-      } else {
-        console.log('Login successful - redirecting to /' + user.username);
-        goto(`/${user.username}`);
-      }
+      const targetPath = user.isAdmin ? '/admin' : `/${user.username}`;
+      console.log('Login successful - target path:', targetPath);
+      console.log('Current base path:', base);
+      
+      // Workaround: manually prepend base path if goto doesn't handle it
+      const fullPath = base + targetPath;
+      console.log('Full path:', fullPath);
+      
+      // Try using window.location as a workaround
+      window.location.href = fullPath;
     } catch (err) {
       error = 'Login failed. Please try again.';
     } finally {

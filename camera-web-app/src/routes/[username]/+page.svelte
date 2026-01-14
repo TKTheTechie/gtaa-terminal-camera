@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { currentUser, isAuthenticated } from '$lib/stores';
-  import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import VideoFeed from '$lib/components/VideoFeed.svelte';
   import ConnectionStatus from '$lib/components/ConnectionStatus.svelte';
@@ -25,13 +25,13 @@
   onMount(async () => {
     // Check if user is authenticated and authorized
     if (!$isAuthenticated || !$currentUser) {
-      goto('/');
+      window.location.href = base + '/';
       return;
     }
 
     // Check if user is trying to access their own feed or is admin
     if ($currentUser.username !== username && !$currentUser.isAdmin) {
-      goto('/');
+      window.location.href = base + '/';
       return;
     }
 
