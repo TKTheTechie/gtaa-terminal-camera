@@ -27,23 +27,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: camera-web-app/package-lock.json
 
       - name: Install dependencies
-        working-directory: camera-web-app
         run: npm ci
 
-      - name: Show environment variables
-        run: |
-          echo "Environment variables for build:"
-          echo "NODE_ENV=$NODE_ENV"
-          echo "BASE_PATH=$BASE_PATH"
-        env:
-          NODE_ENV: production
-          BASE_PATH: /gtaa-terminal-camera
-
       - name: Build
-        working-directory: camera-web-app
         env:
           NODE_ENV: production
           BASE_PATH: /gtaa-terminal-camera
@@ -56,18 +44,10 @@ jobs:
           VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE || 'false' }}
         run: npm run build
 
-      - name: Verify build output
-        run: |
-          echo "Listing build directory contents:"
-          ls -la camera-web-app/build/
-          echo "---"
-          echo "Checking for index.html:"
-          test -f camera-web-app/build/index.html && echo "✓ index.html exists" || echo "✗ index.html missing"
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: camera-web-app/build
+          path: ./build
 
   deploy:
     environment:
