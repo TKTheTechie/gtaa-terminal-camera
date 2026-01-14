@@ -54,9 +54,6 @@ export class SolaceVideoClient {
     return new Promise((resolve, reject) => {
       try {
         console.log('Initializing Solace connection...');
-        console.log('Broker URL:', this.config.url);
-        console.log('VPN:', this.config.vpnName);
-        console.log('Username:', this.config.username);
 
         // Create session properties
         const sessionProperties = new solace.SessionProperties({
