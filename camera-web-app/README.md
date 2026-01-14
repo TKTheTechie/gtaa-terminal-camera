@@ -93,40 +93,55 @@ Set `VITE_DEMO_MODE=true` to run the application without a Solace broker. This m
 
 ## Production Deployment
 
-### GitHub Pages
+### Vercel (Recommended)
 
-This app is configured to deploy automatically to GitHub Pages:
+This app is optimized for Vercel deployment with full SvelteKit support and environment variables.
 
-1. **Enable GitHub Pages**:
-   - Go to your repository Settings → Pages
-   - Under "Build and deployment", select "GitHub Actions" as the source
+**Quick Deploy:**
 
-2. **Configure Base Path**:
-   - The app is configured to use `/gtaa-camera-app` as the base path
-   - Update `svelte.config.js` if your repository name is different:
-   ```javascript
-   paths: {
-     base: process.env.NODE_ENV === 'production' ? '/your-repo-name' : ''
-   }
+1. **Push to GitHub:**
+   ```bash
+   git add .
+   git commit -m "Deploy to Vercel"
+   git push origin main
    ```
 
-3. **Deploy**:
-   - Push to the `main` branch
-   - GitHub Actions will automatically build and deploy
-   - Your app will be available at: `https://your-username.github.io/gtaa-camera-app/`
+2. **Deploy to Vercel:**
+   - Go to [vercel.com](https://vercel.com)
+   - Sign in with GitHub
+   - Click "Add New..." → "Project"
+   - Import your repository
+   - Click "Deploy"
 
-4. **Manual Deployment**:
-   - Go to Actions tab in your repository
-   - Select "Deploy to GitHub Pages" workflow
-   - Click "Run workflow"
+3. **Configure Environment Variables (Optional):**
+   - Go to Settings → Environment Variables
+   - Add your Solace configuration or set `VITE_DEMO_MODE=true`
+
+4. **Access your app:**
+   - `https://your-project.vercel.app`
+
+**Features:**
+- ✅ Automatic deployments on push
+- ✅ Preview deployments for pull requests
+- ✅ Environment variables support
+- ✅ Custom domains
+- ✅ Global CDN
+- ✅ One-click rollbacks
+
+See `VERCEL_DEPLOYMENT.md` for detailed instructions.
 
 ### Other Platforms
+
+The app uses `@sveltejs/adapter-auto` which automatically detects and configures for:
+- Vercel
+- Netlify
+- Cloudflare Pages
+- AWS Amplify
 
 For production use with a real Solace PubSub+ broker:
 1. Set `VITE_DEMO_MODE=false`
 2. Configure proper Solace connection details
-3. Ensure the Solace JavaScript API can load from CDN
-4. Build and deploy:
+3. Build and deploy:
 
 ```bash
 npm run build
