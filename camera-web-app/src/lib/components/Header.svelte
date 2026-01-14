@@ -1,11 +1,11 @@
 <script lang="ts">
   import { currentUser, isAuthenticated } from '../stores';
-  import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
 
   function logout() {
     currentUser.set(null);
     isAuthenticated.set(false);
-    window.location.href = base + '/';
+    goto('/');
   }
 </script>
 

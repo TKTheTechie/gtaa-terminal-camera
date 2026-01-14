@@ -4,6 +4,7 @@
   import { USERS } from '$lib/config';
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
+  import { browser } from '$app/environment';
 
   // Accept SvelteKit props
   export let data: any;
@@ -19,12 +20,11 @@
 
   onMount(() => {
     console.log('Login page - base path:', base);
-    // Redirect if already authenticated
-    if ($isAuthenticated && $currentUser) {
-      const targetPath = $currentUser.isAdmin ? '/admin' : `/${$currentUser.username}`;
-      console.log('Already authenticated - redirecting to:', base + targetPath);
-      window.location.href = base + targetPath;
-    }
+    console.log('Login page - isAuthenticated:', $isAuthenticated);
+    console.log('Login page - currentUser:', $currentUser);
+    
+    // Don't redirect on mount - let the user see the login page
+    // Only redirect after successful login
   });
 
   async function handleLogin() {
@@ -42,17 +42,16 @@
       currentUser.set(user);
       isAuthenticated.set(true);
 
+      // Small delay to ensure stores are persisted
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Redirect based on user type
       const targetPath = user.isAdmin ? '/admin' : `/${user.username}`;
-      console.log('Login successful - target path:', targetPath);
-      console.log('Current base path:', base);
+      console.log('Login successful - navigating to:', targetPath);
+      console.log('Base path:', base);
       
-      // Workaround: manually prepend base path if goto doesn't handle it
-      const fullPath = base + targetPath;
-      console.log('Full path:', fullPath);
-      
-      // Try using window.location as a workaround
-      window.location.href = fullPath;
+      // Use goto for client-side navigation
+      await goto(targetPath);
     } catch (err) {
       error = 'Login failed. Please try again.';
     } finally {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { currentUser, isAuthenticated } from '$lib/stores';
-  import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import VideoFeed from '$lib/components/VideoFeed.svelte';
   import { USERS } from '$lib/config';
@@ -15,11 +15,17 @@
   const airlineUsers = USERS.filter(user => !user.isAdmin);
 
   onMount(() => {
+    console.log('Admin page - isAuthenticated:', $isAuthenticated);
+    console.log('Admin page - currentUser:', $currentUser);
+    
     // Check if user is authenticated and is admin
     if (!$isAuthenticated || !$currentUser || !$currentUser.isAdmin) {
-      window.location.href = base + '/';
+      console.log('Admin page - not authorized, redirecting to login');
+      goto('/');
       return;
     }
+    
+    console.log('Admin page - authorized, staying on page');
   });
 </script>
 
