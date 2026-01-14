@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+        // GitHub Pages SPA redirect
+        // This script takes the current URL and redirects to the index.html
+        // with the path as a query parameter that the app can handle
+        const basePath = '/gtaa-terminal-camera';
+        const currentPath = window.location.pathname.replace(basePath, '');
+        const redirect = basePath + '/?redirect=' + encodeURIComponent(currentPath + window.location.search + window.location.hash);
+        window.location.replace(redirect);
+    </script>
+</head>
+<body>
+    <p>Redirecting...</p>
+</body>
+</html>

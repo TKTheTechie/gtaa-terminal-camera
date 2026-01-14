@@ -1,6 +1,11 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
+// Determine base path
+const basePath = process.env.BASE_PATH || '';
+console.log('SvelteKit Base Path:', basePath || '(empty - development mode)');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	preprocess: vitePreprocess(),
@@ -13,7 +18,7 @@ const config = {
 			strict: true
 		}),
 		paths: {
-			base: process.env.BASE_PATH || (process.env.NODE_ENV === 'production' ? '/gtaa-terminal-camera' : '')
+			base: basePath
 		}
 	}
 };
