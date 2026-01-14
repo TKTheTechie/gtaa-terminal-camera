@@ -47,6 +47,14 @@ jobs:
           VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE || 'false' }}
         run: npm run build
 
+      - name: Verify build output
+        run: |
+          echo "Listing build directory contents:"
+          ls -la camera-web-app/build/
+          echo "---"
+          echo "Checking for index.html:"
+          test -f camera-web-app/build/index.html && echo "✓ index.html exists" || echo "✗ index.html missing"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -3,6 +3,7 @@
   import { currentUser, isAuthenticated } from '$lib/stores';
   import { USERS } from '$lib/config';
   import { onMount } from 'svelte';
+  import { base } from '$app/paths';
 
   // Accept SvelteKit props
   export let data: any;
@@ -17,11 +18,14 @@
   let isLoading = false;
 
   onMount(() => {
+    console.log('Login page - base path:', base);
     // Redirect if already authenticated
     if ($isAuthenticated && $currentUser) {
       if ($currentUser.isAdmin) {
+        console.log('Redirecting to /admin');
         goto('/admin');
       } else {
+        console.log('Redirecting to /' + $currentUser.username);
         goto(`/${$currentUser.username}`);
       }
     }
@@ -44,8 +48,10 @@
 
       // Redirect based on user type
       if (user.isAdmin) {
+        console.log('Login successful - redirecting to /admin');
         goto('/admin');
       } else {
+        console.log('Login successful - redirecting to /' + user.username);
         goto(`/${user.username}`);
       }
     } catch (err) {

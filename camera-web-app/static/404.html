@@ -4,13 +4,33 @@
     <meta charset="utf-8">
     <title>Redirecting...</title>
     <script>
-        // GitHub Pages SPA redirect
-        // This script takes the current URL and redirects to the index.html
-        // with the path as a query parameter that the app can handle
-        const basePath = '/gtaa-terminal-camera';
-        const currentPath = window.location.pathname.replace(basePath, '');
-        const redirect = basePath + '/?redirect=' + encodeURIComponent(currentPath + window.location.search + window.location.hash);
-        window.location.replace(redirect);
+        // GitHub Pages SPA redirect for SvelteKit
+        (function() {
+            var basePath = '/gtaa-terminal-camera';
+            var fullPath = window.location.pathname;
+            
+            console.log('404 Redirect - Full path:', fullPath);
+            console.log('404 Redirect - Base path:', basePath);
+            
+            // If we're already at the base path, just go to index
+            if (fullPath === basePath || fullPath === basePath + '/') {
+                window.location.replace(basePath + '/');
+                return;
+            }
+            
+            // Remove base path if it exists to get the route
+            var route = fullPath;
+            if (fullPath.startsWith(basePath)) {
+                route = fullPath.substring(basePath.length);
+            }
+            
+            console.log('404 Redirect - Route:', route);
+            
+            // Redirect to index with the route as a parameter
+            var redirect = basePath + '/?redirect=' + encodeURIComponent(route + window.location.search + window.location.hash);
+            console.log('404 Redirect - Redirecting to:', redirect);
+            window.location.replace(redirect);
+        })();
     </script>
 </head>
 <body>

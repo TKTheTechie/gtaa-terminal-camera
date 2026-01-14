@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { base } from '$app/paths';
   
   // Accept the data prop that SvelteKit passes to layouts (unused but required)
   export let data: any;
@@ -13,8 +14,13 @@
 
   // Handle GitHub Pages SPA redirect
   onMount(() => {
+    console.log('Layout mounted - base path:', base);
+    console.log('Layout mounted - current URL:', $page.url.href);
+    console.log('Layout mounted - pathname:', $page.url.pathname);
+    
     const redirect = $page.url.searchParams.get('redirect');
     if (redirect) {
+      console.log('Redirect parameter found:', redirect);
       // Remove the redirect parameter and navigate to the intended path
       goto(redirect, { replaceState: true });
     }
