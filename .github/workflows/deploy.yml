@@ -18,6 +18,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: camera-web-app
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,6 +30,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: camera-web-app/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -34,12 +38,20 @@ jobs:
       - name: Build
         env:
           NODE_ENV: production
+          VITE_BASE_PATH: /gtaa-terminal-camera
+          VITE_SOLACE_URL: ${{ vars.VITE_SOLACE_URL }}
+          VITE_SOLACE_VPN: ${{ vars.VITE_SOLACE_VPN }}
+          VITE_SOLACE_USERNAME: ${{ vars.VITE_SOLACE_USERNAME }}
+          VITE_SOLACE_PASSWORD: ${{ vars.VITE_SOLACE_PASSWORD }}
+          VITE_VIDEO_FEED_TOPIC: ${{ vars.VITE_VIDEO_FEED_TOPIC }}
+          VITE_VIDEO_FEED_CONTROL_TOPIC: ${{ vars.VITE_VIDEO_FEED_CONTROL_TOPIC }}
+          VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE || 'false' }}
         run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./build
+          path: ./camera-web-app/build
 
   deploy:
     environment:
