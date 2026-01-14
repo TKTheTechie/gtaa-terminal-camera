@@ -38,7 +38,7 @@ jobs:
       - name: Build
         env:
           NODE_ENV: production
-          VITE_BASE_PATH: /gtaa-terminal-camera
+          BASE_PATH: /gtaa-terminal-camera
           VITE_SOLACE_URL: ${{ vars.VITE_SOLACE_URL }}
           VITE_SOLACE_VPN: ${{ vars.VITE_SOLACE_VPN }}
           VITE_SOLACE_USERNAME: ${{ vars.VITE_SOLACE_USERNAME }}
