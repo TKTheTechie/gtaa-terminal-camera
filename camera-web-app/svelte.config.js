@@ -3,8 +3,13 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 // Determine base path
 const basePath = process.env.BASE_PATH || '';
-console.log('SvelteKit Base Path:', basePath || '(empty - development mode)');
+console.log('==========================================');
+console.log('SvelteKit Configuration');
+console.log('==========================================');
+console.log('BASE_PATH env var:', process.env.BASE_PATH);
 console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('Resolved base path:', basePath || '(empty - development mode)');
+console.log('==========================================');
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {

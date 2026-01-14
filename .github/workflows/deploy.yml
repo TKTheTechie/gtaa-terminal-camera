@@ -33,6 +33,15 @@ jobs:
         working-directory: camera-web-app
         run: npm ci
 
+      - name: Show environment variables
+        run: |
+          echo "Environment variables for build:"
+          echo "NODE_ENV=$NODE_ENV"
+          echo "BASE_PATH=$BASE_PATH"
+        env:
+          NODE_ENV: production
+          BASE_PATH: /gtaa-terminal-camera
+
       - name: Build
         working-directory: camera-web-app
         env:
