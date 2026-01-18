@@ -14,6 +14,7 @@ export class SolaceVideoClient {
   private sessionEventCb: any = null;
   private messageEventCb: any = null;
   private onFrameCallback?: (imageData: string) => void;
+  private topicCallbacks: Map<string, (payload: any) => void> = new Map();
   private isConnected = false;
   private subscriptions: Set<string> = new Set();
   private demoInterval?: number;
@@ -173,6 +174,58 @@ export class SolaceVideoClient {
     }
   }
 
+  subscribeToTopic(topic: string, onMessage: (payload: any) => void): void {
+    console.log('subscribeToTopic called with topic:', topic, 'type:', typeof topic);
+    
+    if (!topic || topic.trim() === '') {
+      console.error('Invalid topic: topic is empty or undefined');
+      return;
+    }
+    
+    if (DEMO_MODE || (this.session && 'demo' in this.session && this.session.demo)) {
+      console.log(`Demo mode: Subscribing to ${topic}`);
+      // Simulate people count data in demo mode
+      const demoInterval = window.setInterval(() => {
+        onMessage({
+          peopleCount: Math.floor(Math.random() * 5) + 1,
+          detections: [],
+          timestamp: new Date().toISOString(),
+          frameSize: { width: 640, height: 480 },
+          activeTopic: 'demo',
+          model: 'DEMO-ONNX'
+        });
+      }, 2000);
+      return;
+    }
+
+    if (!this.session || !this.isConnected) {
+      console.error('Solace session not connected');
+      return;
+    }
+    
+    // Type guard to ensure we have a real Solace session
+    if ('demo' in this.session) {
+      console.error('Cannot subscribe with demo session');
+      return;
+    }
+    
+    try {
+      // Store the callback for this topic
+      this.topicCallbacks.set(topic, onMessage);
+      
+      console.log('Creating topic destination for:', topic);
+      const destination = solace.SolclientFactory.createTopicDestination(topic);
+      console.log('Topic destination created, subscribing...');
+      this.session.subscribe(destination, true, topic, 10000);
+      this.subscriptions.add(topic);
+      
+      console.log(`Subscribed to topic: ${topic}`);
+    } catch (error: unknown) {
+      console.error('Failed to subscribe to topic:', error);
+      console.error('Topic value was:', topic);
+    }
+  }
+
   private startDemoVideoFeed(): void {
     // Clear any existing interval
     if (this.demoInterval) {
@@ -235,6 +288,19 @@ export class SolaceVideoClient {
       const topic = destination.getName();
       const binaryAttachment = message.getBinaryAttachment();
       if (!binaryAttachment) return;
+
+      // Check if there's a callback registered for this specific topic
+      const topicCallback = this.topicCallbacks.get(topic);
+      if (topicCallback) {
+        try {
+          const payload = JSON.parse(binaryAttachment);
+          console.log(`Received message on topic ${topic}:`, payload);
+          topicCallback(payload);
+          return;
+        } catch (error) {
+          console.error(`Failed to parse message payload for topic ${topic}:`, error);
+        }
+      }
 
       // Handle video stream messages
       if (topic.endsWith('/stream')) {

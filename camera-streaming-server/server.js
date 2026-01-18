@@ -2,6 +2,7 @@ const express = require('express');
 const mqtt = require('mqtt');
 const http = require('http');
 const WebSocket = require('ws');
+const YOLOv8Detector = require('./yolo-detector');
 require('dotenv').config();
 
 class ESP32VideoStreamer {
@@ -16,6 +17,9 @@ class ESP32VideoStreamer {
     this.statsInterval = null;
     this.publishQueue = 0;
     this.droppedFrames = 0;
+    this.detectionModel = null;
+    this.lastDetectionTime = 0;
+    this.detectionQueue = [];
     
     this.config = {
       solace: {
@@ -37,6 +41,13 @@ class ESP32VideoStreamer {
         chunkSize: parseInt(process.env.CHUNK_SIZE) || 8192,
         minFrameInterval: parseInt(process.env.MIN_FRAME_INTERVAL_MS) || 0, // 0 = no throttling
         maxFps: parseInt(process.env.MAX_FPS) || 0 // 0 = unlimited
+      },
+      detection: {
+        enabled: process.env.ENABLE_PEOPLE_DETECTION === 'true',
+        intervalMs: parseInt(process.env.DETECTION_INTERVAL_MS) || 2000,
+        confidenceThreshold: parseFloat(process.env.DETECTION_CONFIDENCE_THRESHOLD) || 0.5,
+        analyticsTopic: process.env.ANALYTICS_TOPIC || 'video/esp32/analytics',
+        modelSize: process.env.YOLO_MODEL_SIZE || 'yolov8n'
       }
     };
     
@@ -53,6 +64,9 @@ class ESP32VideoStreamer {
   async initialize() {
     try {
       await this.setupMQTT();
+      if (this.config.detection.enabled) {
+        await this.loadDetectionModel();
+      }
       this.setupExpress();
       this.startServer();
       this.startVideoStream();
@@ -60,6 +74,32 @@ class ESP32VideoStreamer {
     } catch (error) {
       console.error('Failed to initialize:', error);
       process.exit(1);
+    }
+  }
+
+  async loadDetectionModel() {
+    console.log('Initializing YOLOv8 detector...');
+    try {
+      this.detectionModel = new YOLOv8Detector(
+        this.config.detection.confidenceThreshold,
+        this.config.detection.modelSize
+      );
+      const success = await this.detectionModel.initialize();
+      
+      if (success) {
+        console.log(`  Detection interval: ${this.config.detection.intervalMs}ms`);
+        console.log(`  Confidence threshold: ${this.config.detection.confidenceThreshold}`);
+        console.log(`  Analytics topic: ${this.config.detection.analyticsTopic}`);
+        console.log(`  Model: ${this.config.detection.modelSize}`);
+      } else {
+        console.error('Failed to initialize detector');
+        this.config.detection.enabled = false;
+        this.detectionModel = null;
+      }
+    } catch (error) {
+      console.error('Failed to load detection model:', error);
+      this.config.detection.enabled = false;
+      this.detectionModel = null;
     }
   }
 
@@ -149,7 +189,12 @@ class ESP32VideoStreamer {
         videoTopicPrefix: this.config.server.videoTopicPrefix,
         activeTopic: this.currentActiveTopic,
         fullVideoTopic: this.currentVideoTopic,
-        controlTopic: this.config.server.controlTopic
+        controlTopic: this.config.server.controlTopic,
+        peopleDetection: {
+          enabled: this.config.detection.enabled,
+          modelLoaded: this.detectionModel !== null,
+          intervalMs: this.config.detection.intervalMs
+        }
       });
     });
 
@@ -280,6 +325,13 @@ class ESP32VideoStreamer {
                 now - this.lastFrameTime >= this.config.server.minFrameInterval) {
               this.publishVideoFrame(frame);
               this.lastFrameTime = now;
+              
+              // Queue frame for people detection if enabled
+              if (this.config.detection.enabled && 
+                  now - this.lastDetectionTime >= this.config.detection.intervalMs) {
+                this.queueFrameForDetection(frame);
+                this.lastDetectionTime = now;
+              }
             }
 
             // Move to next potential frame
@@ -364,6 +416,81 @@ class ESP32VideoStreamer {
     });
     
     this.frameCount++;
+  }
+
+  queueFrameForDetection(frameData) {
+    // Keep only the latest frame in queue to avoid backlog
+    this.detectionQueue = [frameData];
+    
+    // Process detection asynchronously
+    setImmediate(() => this.processDetection());
+  }
+
+  async processDetection() {
+    if (this.detectionQueue.length === 0 || !this.detectionModel) {
+      return;
+    }
+
+    const frameData = this.detectionQueue.shift();
+    
+    try {
+      const sharp = require('sharp');
+      
+      // Get image metadata
+      const metadata = await sharp(frameData).metadata();
+      
+      // Run YOLOv8 detection
+      const people = await this.detectionModel.detect(frameData);
+
+      // Publish analytics
+      const analytics = {
+        timestamp: new Date().toISOString(),
+        peopleCount: people.length,
+        detections: people.map(p => ({
+          confidence: p.score,
+          bbox: {
+            x: p.box.xmin,
+            y: p.box.ymin,
+            width: p.box.xmax - p.box.xmin,
+            height: p.box.ymax - p.box.ymin
+          }
+        })),
+        frameSize: {
+          width: metadata.width,
+          height: metadata.height
+        },
+        activeTopic: this.currentActiveTopic,
+        model: `${this.config.detection.modelSize.toUpperCase()}-ONNX`
+      };
+
+      this.publishAnalytics(analytics);
+      
+      if (people.length > 0) {
+        console.log(`People detected: ${people.length} (confidence >= ${this.config.detection.confidenceThreshold})`);
+        people.forEach((p, i) => {
+          console.log(`  Person ${i + 1}: ${(p.score * 100).toFixed(1)}% confidence`);
+        });
+      }
+    } catch (error) {
+      console.error('Detection error:', error.message);
+    }
+  }
+
+  publishAnalytics(analytics) {
+    if (!this.mqttClient || !this.mqttClient.connected) {
+      return;
+    }
+
+    this.mqttClient.publish(
+      this.config.detection.analyticsTopic,
+      JSON.stringify(analytics),
+      { qos: 1 },
+      (error) => {
+        if (error) {
+          console.error('Failed to publish analytics:', error.message);
+        }
+      }
+    );
   }
 
   stopVideoStream() {
@@ -537,6 +664,9 @@ class ESP32VideoStreamer {
     if (this.server) {
       this.server.close();
     }
+    
+    // Give time for cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 }
 

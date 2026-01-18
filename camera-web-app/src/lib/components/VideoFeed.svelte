@@ -3,6 +3,7 @@
   import { SolaceVideoClient } from '../solace';
   import { APP_CONFIG } from '../config';
   import { activeCamera } from '../stores';
+  import type { PeopleCount, Detection } from '../types';
 
   export let username: string;
   export let videoTopic: string = '';
@@ -18,12 +19,19 @@
   let fps = 0;
   let errorMessage = '';
   let isInactive = true; // Start with inactive overlay
+  let peopleCount: number | null = null;
+  let lastPeopleCountUpdate: string = '';
+  let detections: Detection[] = [];
+  let frameSize = { width: 640, height: 480 };
 
   // Check if this camera is the active one
   $: isActive = $activeCamera === username;
 
   // Use provided videoTopic or fallback to default
   $: topic = videoTopic || `${APP_CONFIG.videoFeedTopic}/${username}`;
+  
+  // Analytics topic for people count
+  $: analyticsTopic = APP_CONFIG.analyticsTopic;
 
   onMount(async () => {
     // Connect to Solace (it will load the library internally)
@@ -35,12 +43,16 @@
       connectionStatus = 'Connecting...';
       errorMessage = '';
       
+      console.log('APP_CONFIG:', APP_CONFIG);
+      console.log('analyticsTopic value:', analyticsTopic);
+      
       client = new SolaceVideoClient(APP_CONFIG.solace);
       await client.connect();
       
       connectionStatus = 'Connected';
       isConnected = true;
       
+      // Subscribe to video feed
       client.subscribe(topic, (imageData: string) => {
         // Check for inactive state
         if (imageData === 'INACTIVE') {
@@ -64,6 +76,17 @@
           }
         }
       });
+      
+      // Subscribe to analytics topic for people count
+      console.log('Subscribing to analytics topic:', analyticsTopic);
+      client.subscribeToTopic(analyticsTopic, (payload: PeopleCount) => {
+        console.log('Received analytics data:', payload);
+        peopleCount = payload.peopleCount;
+        detections = payload.detections || [];
+        frameSize = payload.frameSize || { width: 640, height: 480 };
+        lastPeopleCountUpdate = new Date(payload.timestamp).toLocaleTimeString();
+      });
+      
     } catch (error) {
       console.error('Failed to connect to video feed:', error);
       connectionStatus = 'Connection Failed';
@@ -155,9 +178,71 @@
           class="w-full h-full object-contain"
           on:error={() => console.warn('Image load error')}
         />
+        
+        <!-- Bounding Boxes Overlay -->
+        {#if detections.length > 0}
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 {frameSize.width} {frameSize.height}" preserveAspectRatio="xMidYMid meet">
+            {#each detections as detection, i}
+              {@const { x, y, width, height } = detection.bbox}
+              {@const confidence = Math.round(detection.confidence * 100)}
+              <g>
+                <!-- Bounding box rectangle -->
+                <rect
+                  x={x}
+                  y={y}
+                  width={width}
+                  height={height}
+                  fill="none"
+                  stroke="#00ff00"
+                  stroke-width="3"
+                  opacity="0.8"
+                />
+                <!-- Confidence label background -->
+                <rect
+                  x={x}
+                  y={y - 25}
+                  width={confidence >= 100 ? 70 : 60}
+                  height="22"
+                  fill="#00ff00"
+                  opacity="0.8"
+                />
+                <!-- Confidence label text -->
+                <text
+                  x={x + 5}
+                  y={y - 8}
+                  fill="#000000"
+                  font-size="16"
+                  font-weight="bold"
+                  font-family="Arial, sans-serif"
+                >
+                  {confidence}%
+                </text>
+              </g>
+            {/each}
+          </svg>
+        {/if}
+        
         <div class="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
           Live
         </div>
+        
+        <!-- People Count Overlay -->
+        {#if peopleCount !== null}
+          <div class="absolute top-2 right-2 bg-blue-600 bg-opacity-90 text-white px-4 py-2 rounded-lg shadow-lg">
+            <div class="flex items-center space-x-2">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+              </svg>
+              <div>
+                <div class="text-2xl font-bold leading-none">{peopleCount}</div>
+                <div class="text-xs opacity-90">{peopleCount === 1 ? 'Person' : 'People'}</div>
+              </div>
+            </div>
+            {#if lastPeopleCountUpdate}
+              <div class="text-xs opacity-75 mt-1">{lastPeopleCountUpdate}</div>
+            {/if}
+          </div>
+        {/if}
       {/if}
     {:else}
       <div class="flex items-center justify-center h-full text-white">

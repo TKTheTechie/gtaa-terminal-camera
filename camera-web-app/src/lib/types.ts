@@ -14,6 +14,28 @@ export interface VideoFrame {
   data?: string;
 }
 
+export interface Detection {
+  confidence: number;
+  bbox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+export interface PeopleCount {
+  peopleCount: number;
+  detections: Detection[];
+  timestamp: string;
+  frameSize: {
+    width: number;
+    height: number;
+  };
+  activeTopic: string;
+  model?: string;
+}
+
 export interface SolaceConfig {
   url: string;
   vpnName: string;
@@ -24,5 +46,6 @@ export interface SolaceConfig {
 export interface AppConfig {
   videoFeedTopic: string;
   videoFeedControlTopic: string;
+  analyticsTopic: string;
   solace: SolaceConfig;
 }

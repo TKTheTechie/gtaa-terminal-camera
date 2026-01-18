@@ -10,6 +10,8 @@ A Node.js server that consumes video streams from ESP32 camera modules and publi
 - RESTful API for stream control
 - Chunked frame transmission for large video frames
 - Health monitoring and status endpoints
+- **Real-time people detection and counting using YOLOv8**
+- **Periodic analytics publishing with person count and bounding boxes**
 
 ## Setup
 
@@ -31,6 +33,10 @@ cp .env.example .env
    - `ACTIVE_TOPIC`: Current active topic suffix (default: aircanada)
    - `MAX_FPS`: Maximum frames per second (0 = unlimited, e.g., 10 for 10 fps)
    - `MIN_FRAME_INTERVAL_MS`: Minimum milliseconds between frames (0 = no throttling, overridden by MAX_FPS)
+   - `ENABLE_PEOPLE_DETECTION`: Enable/disable people detection (true/false)
+   - `DETECTION_INTERVAL_MS`: How often to run detection in milliseconds (e.g., 2000 for every 2 seconds)
+   - `DETECTION_CONFIDENCE_THRESHOLD`: Minimum confidence score for person detection (0.0-1.0, default: 0.5)
+   - `ANALYTICS_TOPIC`: MQTT topic for publishing analytics data
    - Other configuration as needed
 
 The video topic will be constructed as `{VIDEO_TOPIC_PREFIX}/{ACTIVE_TOPIC}` (e.g., `video/esp32/aircanada`)
@@ -61,6 +67,7 @@ npm start
 
 The server publishes to these topics:
 - `{VIDEO_TOPIC_PREFIX}/{ACTIVE_TOPIC}/stream` - Complete video frames with metadata and data
+- `{ANALYTICS_TOPIC}` - People detection analytics (when enabled)
 
 The server subscribes to:
 - `video/esp32/control` - Control topic for dynamic configuration
@@ -175,3 +182,84 @@ const jpegData = message.subarray(headerEnd + 1);
 ```
 
 This binary format eliminates base64 encoding overhead (~33% size reduction) for maximum throughput.
+
+## People Detection & Analytics
+
+When enabled, the server uses **YOLOv8** (You Only Look Once v8) for accurate real-time person detection and counting. YOLOv8 is significantly more accurate than COCO-SSD and provides better performance in various lighting conditions and angles.
+
+### Setup
+
+**First, you need to export the YOLOv8 model to ONNX format:**
+
+```bash
+# Install Python dependencies
+pip install ultralytics
+
+# Export the model (this will download and convert YOLOv8n to ONNX)
+python export-yolo-model.py
+```
+
+This will create `models/yolov8n.onnx` (~6MB) which the server will use for detection.
+
+### Configuration
+
+```bash
+ENABLE_PEOPLE_DETECTION=true
+DETECTION_INTERVAL_MS=2000          # Run detection every 2 seconds
+DETECTION_CONFIDENCE_THRESHOLD=0.5  # Minimum confidence (0.0-1.0)
+ANALYTICS_TOPIC=gtaa/camera/analytics/gate1
+```
+
+### Analytics Message Format
+
+Analytics are published to the configured `ANALYTICS_TOPIC` as JSON:
+
+```json
+{
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "peopleCount": 3,
+  "detections": [
+    {
+      "confidence": 0.87,
+      "bbox": {
+        "x": 120,
+        "y": 80,
+        "width": 150,
+        "height": 320
+      }
+    }
+  ],
+  "frameSize": {
+    "width": 640,
+    "height": 480
+  },
+  "activeTopic": "aircanada"
+}
+```
+
+### How It Works
+
+1. Video frames are captured from the ESP32 camera
+2. At the configured interval (e.g., every 2 seconds), a frame is queued for detection
+3. The YOLOv8 model analyzes the frame and identifies people with high accuracy
+4. Only detections with confidence >= threshold are counted
+5. Analytics with person count and bounding boxes are published to MQTT
+6. Detection runs asynchronously to avoid blocking video streaming
+
+### Why YOLOv8?
+
+- **Higher Accuracy**: YOLOv8 is state-of-the-art for object detection
+- **Better Performance**: Optimized for real-time detection
+- **Robust Detection**: Works well in various lighting conditions, angles, and occlusions
+- **Precise Bounding Boxes**: More accurate location data for each person
+- **Lower False Positives**: Better at distinguishing people from other objects
+- **No Authentication Required**: Uses ONNX Runtime with direct model download from Ultralytics
+
+### Performance Notes
+
+- Detection runs on a separate queue to prevent blocking video streaming
+- Only the latest frame is kept in the detection queue
+- Model downloads automatically on first run (~6MB, cached in `models/` directory)
+- Detection typically takes 200-800ms per frame depending on image size
+- Adjust `DETECTION_INTERVAL_MS` based on your performance requirements
+- Recommended threshold: 0.4-0.6 for best balance of accuracy and false positives
